@@ -40,7 +40,6 @@ func (u *userRepository) GetUserByUsername(username string) (*entities.User, err
 		return nil, errors.New("User not found")
 	}
 
-	defer db.Close()
 	defer rows.Close()
 
 	return &user, nil

@@ -28,10 +28,10 @@ type NotificatorUsecase interface {
 
 var wshub = &hub{
 	clients:    make(map[string][]*Client, 0),
-	broadcast:  make(chan []byte, 512),
-	register:   make(chan *Client, 256),
-	unregister: make(chan *Client, 256),
-	direct:     make(chan *DirectMessage, 256),
+	broadcast:  make(chan []byte),
+	register:   make(chan *Client),
+	unregister: make(chan *Client),
+	direct:     make(chan *DirectMessage),
 }
 
 func getHub() *hub {
@@ -124,7 +124,7 @@ func (h *hub) run() {
 				h.clients[client.id] = make([]*Client, 0)
 			}
 			h.clients[client.id] = append(h.clients[client.id], client)
-			fmt.Println("@hub.run: clients add", h.clients)
+			fmt.Println("@hub.run: clients add len", len(h.clients[client.id]))
 		case client := <-h.unregister:
 			fmt.Println("@hub.run: unregister")
 			clients, ok := h.clients[client.id]
@@ -171,7 +171,7 @@ func ServeWs(conn *websocket.Conn, userID string) {
 		id:   userID,
 		hub:  getHub(),
 		conn: conn,
-		send: make(chan []byte, 256),
+		send: make(chan []byte),
 	}
 
 	fmt.Println("@ServeWs client:", userID)

@@ -10,25 +10,34 @@ import (
 	config "github.com/baybaraandrey/ws_notification/internal/config"
 )
 
+var db *sql.DB
+
 // OpenConnection open new connection to db
 func OpenConnection() *sql.DB {
-	cfg, err := config.Load()
-	if err != nil {
-		nativeLog.Fatal(err)
+	if db == nil {
+		cfg, err := config.Load()
+		if err != nil {
+			nativeLog.Fatal(err)
+		}
+
+		connStr := fmt.Sprintf("host=%s port=%d user=%s "+
+			"password=%s dbname=%s", cfg.DbHost, cfg.DbPort, cfg.DbUser, cfg.DbPass, cfg.DbName)
+
+		db, err = sql.Open("postgres", connStr)
+		if err != nil {
+			nativeLog.Fatal(err)
+		}
+
+		err = db.Ping()
+		if err != nil {
+			nativeLog.Fatal(err)
+		}
 	}
-
-	connStr := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s", cfg.DbHost, cfg.DbPort, cfg.DbUser, cfg.DbPass, cfg.DbName)
-
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		nativeLog.Fatal(err)
-	}
-
-	err = db.Ping()
-	if err != nil {
-		nativeLog.Fatal(err)
-	}
-
 	return db
+}
+
+func CloseDB() {
+	if db != nil {
+		db.Close()
+	}
 }

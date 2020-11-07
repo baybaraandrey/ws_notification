@@ -60,15 +60,13 @@ func (h *notificationHandler) handle(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("@rest.handle %+v\n", *msg)
 
 	if len(msg.TransMap.UserIDs) >= 0 {
-		h.wsNotificator.SendDirect(&NotificationUsecases.DirectMessage{
+		go h.wsNotificator.SendDirect(&NotificationUsecases.DirectMessage{
 			UserIDs: msg.TransMap.UserIDs,
 			Data:    b,
 		})
 	} else {
-		h.wsNotificator.SendAll(b)
+		go h.wsNotificator.SendAll(b)
 	}
 	i++
 	fmt.Println("@rest.handle sended:", i)
-	// Do something with the Person struct...
-	w.Write(b)
 }

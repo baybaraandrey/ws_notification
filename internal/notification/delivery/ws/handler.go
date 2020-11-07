@@ -91,5 +91,5 @@ func (h *notificationHandler) handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := strconv.Itoa(user.ID)
-	notificationUsecases.ServeWs(c, userID)
+	go notificationUsecases.ServeWs(c, userID)
 }
