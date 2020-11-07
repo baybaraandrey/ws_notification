@@ -20,6 +20,7 @@ import (
 	monitor "github.com/baybaraandrey/ws_notification/internal/monitoring/delivery/rest"
 	notificationsRest "github.com/baybaraandrey/ws_notification/internal/notification/delivery/rest"
 	notificationsWs "github.com/baybaraandrey/ws_notification/internal/notification/delivery/ws"
+	notificationRepositories "github.com/baybaraandrey/ws_notification/internal/notification/repositories"
 	notificationUsecases "github.com/baybaraandrey/ws_notification/internal/notification/usecases"
 )
 
@@ -85,9 +86,11 @@ func main() {
 	})
 
 	wsNotificator := notificationUsecases.NewWebsocketNotificator()
+	userRepository := notificationRepositories.NewUserRepository()
+
 	// API
 	notificationsRest.NewNotificationHandler(restv1, wsNotificator)
-	notificationsWs.NewNotificationHandler(wsv1, wsNotificator)
+	notificationsWs.NewNotificationHandler(wsv1, wsNotificator, userRepository)
 
 	restAddr := fmt.Sprintf("0.0.0.0:%d", cfg.RESTServerPort)
 	wsAddr := fmt.Sprintf("0.0.0.0:%d", cfg.WsServerPort)

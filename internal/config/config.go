@@ -58,9 +58,9 @@ func init() {
 	viper.AutomaticEnv()
 	viper.SetDefault("REST_SERVER_PORT", 8080)
 	viper.SetDefault("WS_SERVER_PORT", 7778)
-	viper.SetDefault("DB_USER", "courses")
-	viper.SetDefault("DB_PASS", "courses")
-	viper.SetDefault("DB_NAME", "courses")
+	viper.SetDefault("DB_USER", "cyberjin")
+	viper.SetDefault("DB_PASS", "cyberjin")
+	viper.SetDefault("DB_NAME", "cyberjin")
 	viper.SetDefault("DB_HOST", "localhost")
-	viper.SetDefault("DB_PORT", 27017)
+	viper.SetDefault("DB_PORT", 5432)
 }
