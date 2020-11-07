@@ -1,0 +1,50 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is a ws notifications app",
+        "title": "Swagger Cyberjin notifications API",
+        "contact": {
+            "name": "Andrey Baybara",
+            "email": "baybaraandrey@gmail.com"
+        },
+        "license": {},
+        "version": "0.0.1"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/_api/": {
+            "get": {
+                "description": "Application monitor",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "app-monitor"
+                ],
+                "summary": "Application monitor",
+                "responses": {
+                    "200": {}
+                }
+            }
+        },
+        "/api/v1/notifications/": {
+            "post": {
+                "description": "notify client",
+                "tags": [
+                    "rest-notifications"
+                ],
+                "summary": "notify client"
+            }
+        },
+        "/ws/v1/notifications/": {
+            "get": {
+                "description": "notifications api",
+                "tags": [
+                    "ws-notifications"
+                ],
+                "summary": "notifications api"
+            }
+        }
+    }
+}

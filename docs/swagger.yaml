@@ -1,0 +1,34 @@
+basePath: /
+host: localhost:8080
+info:
+  contact:
+    email: baybaraandrey@gmail.com
+    name: Andrey Baybara
+  description: This is a ws notifications app
+  license: {}
+  title: Swagger Cyberjin notifications API
+  version: 0.0.1
+paths:
+  /_api/:
+    get:
+      description: Application monitor
+      produces:
+      - text/plain
+      responses:
+        "200": {}
+      summary: Application monitor
+      tags:
+      - app-monitor
+  /api/v1/notifications/:
+    post:
+      description: notify client
+      summary: notify client
+      tags:
+      - rest-notifications
+  /ws/v1/notifications/:
+    get:
+      description: notifications api
+      summary: notifications api
+      tags:
+      - ws-notifications
+swagger: "2.0"
