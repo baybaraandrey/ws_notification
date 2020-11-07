@@ -15,7 +15,7 @@ const (
 	pongWait = 60 * time.Second
 
 	// send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = 5 * time.Second
+	pingPeriod = 55 * time.Second
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 4096 * 4
@@ -72,20 +72,9 @@ func (c *Client) writePump() {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
+			err := c.conn.WriteMessage(websocket.TextMessage, msgBytes)
 			if err != nil {
-				return
-			}
-
-			w.Write(msgBytes)
-
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
+				fmt.Println("Error when writing", err)
 				return
 			}
 		case <-ticker.C:
@@ -159,7 +148,7 @@ func (h *hub) run() {
 			for _, connList := range h.clients {
 				for index, c := range connList {
 					_ = index
-					go func(m []byte, c *Client) { c.send <- m }(message, c)
+					c.send <- message
 				}
 			}
 		case directMessage := <-h.direct:
@@ -169,7 +158,7 @@ func (h *hub) run() {
 				if ok {
 					fmt.Println("@hub.direct: sendto", userID)
 					for _, c := range clients {
-						go func(m []byte, c *Client) { c.send <- m }(directMessage.Data, c)
+						c.send <- directMessage.Data
 					}
 				}
 			}
