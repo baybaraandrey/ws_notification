@@ -1,9 +1,10 @@
 package log
 
 import (
-	"github.com/sirupsen/logrus"
 	"os"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 var logger *logrus.Logger
@@ -46,6 +47,7 @@ func New() Logger {
 	Formatter := new(logrus.TextFormatter)
 	Formatter.TimestampFormat = time.RFC3339
 	logger.SetFormatter(Formatter)
+	logger.SetLevel(logrus.DebugLevel)
 
 	return logger
 }

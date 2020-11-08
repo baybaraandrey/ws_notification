@@ -1,12 +1,14 @@
 package usecases
 
 import (
-	"fmt"
 	"runtime"
 	"time"
 
+	log "github.com/baybaraandrey/ws_notification/pkg/log"
 	"github.com/gorilla/websocket"
 )
+
+var logger = log.New()
 
 const (
 	// Time allowed to write a message to the peer.
@@ -64,13 +66,13 @@ func (c *Client) readPump() {
 		msgType, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				fmt.Printf("IsUnexpectedCloseError: %v\n", err)
+				logger.Debugf("IsUnexpectedCloseError: %v\n", err)
 			}
 			return
 		}
 
 		if msgType == websocket.CloseMessage {
-			fmt.Println("readPump close message receive")
+			logger.Debug("readPump close message receive")
 			return
 		}
 	}
@@ -81,20 +83,20 @@ func (c *Client) writePump() {
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
-		fmt.Println("@Client.writePump: unregister before")
+		logger.Debug("@Client.writePump: unregister before")
 		c.hub.unregister <- c
-		fmt.Println("@Client.writePump: unregister after")
+		logger.Debug("@Client.writePump: unregister after")
 	}()
 	for {
 		select {
 		case msgBytes, ok := <-c.send:
-			fmt.Println("@Client.writePump: receive message from c.send: ", ok)
+			logger.Debug("@Client.writePump: receive message from c.send: ", ok)
 			// log.Debug("writePump receive message: ", string(msgBytes))
 
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel
-				fmt.Println("@Client.writePump: !ok the hub closed the channel")
+				logger.Debug("@Client.writePump: !ok the hub closed the channel")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -103,19 +105,22 @@ func (c *Client) writePump() {
 				return
 			}
 
-			w.Write(msgBytes)
+			_, err = w.Write(msgBytes)
+			if err != nil {
+				return
+			}
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				m, ok := <-c.send
 				if !ok {
-					fmt.Println("@Client.writePump: inside loop hub closed channel")
+					logger.Debug("@Client.writePump: inside loop hub closed channel")
 					return
 				}
 				_, err := w.Write(m)
 				if err != nil {
-					fmt.Println("@Client.writePump: error w.Write(<-c.send) drain", err)
+					logger.Debug("@Client.writePump: error w.Write(<-c.send) drain", err)
 					for j := i; j < n; j++ {
 						<-c.send
 						return
@@ -173,11 +178,11 @@ func (h *hub) run() {
 				h.clients[client.id] = make([]*Client, 0)
 			}
 			h.clients[client.id] = append(h.clients[client.id], client)
-			fmt.Println("@hub.run: clients add len", len(h.clients[client.id]))
+			logger.Debug("@hub.run: clients add len", len(h.clients[client.id]))
 		case client := <-h.unregister:
-			fmt.Println("@hub.run: unregister client")
-			fmt.Println("@hub.run: unregister len(client.send)", len(client.send))
-			fmt.Println("@hub.run: unregister len(h.unregister)", len(h.unregister))
+			logger.Debug("@hub.run: unregister client")
+			logger.Debug("@hub.run: unregister len(client.send)", len(client.send))
+			logger.Debug("@hub.run: unregister len(h.unregister)", len(h.unregister))
 			clients, ok := h.clients[client.id]
 			if ok {
 			Loop:
@@ -188,11 +193,11 @@ func (h *hub) run() {
 						break Loop
 					}
 				}
-				fmt.Println("@hub.run: clients delete len", len(h.clients[client.id]))
+				logger.Debug("@hub.run: clients delete len", len(h.clients[client.id]))
 				if len(h.clients[client.id]) == 0 {
 					delete(h.clients, client.id)
 				}
-				fmt.Println("len(@hub.clients):", h.clients)
+				logger.Debug("@hub.run: len(@hub.clients):", len(h.clients))
 			}
 			n := len(h.unregister)
 			for i := 0; i < n; i++ {
@@ -207,11 +212,11 @@ func (h *hub) run() {
 							break Loop1
 						}
 					}
-					fmt.Println("@hub.run: clients delete len", len(h.clients[client.id]))
+					logger.Debug("@hub.run: clients delete len", len(h.clients[client.id]))
 					if len(h.clients[client.id]) == 0 {
 						delete(h.clients, client.id)
 					}
-					fmt.Println("len(@hub.clients):", h.clients)
+					logger.Debug("@hub.run: len(@hub.clients):", len(h.clients))
 				}
 			}
 		case message := <-h.broadcast:
@@ -226,12 +231,12 @@ func (h *hub) run() {
 				clients, ok := h.clients[userID]
 
 				if ok {
-					fmt.Println("@hub.direct: sendto", userID)
+					logger.Debug("@hub.direct: sendto", userID)
 					for _, c := range clients {
 						select {
 						case c.send <- directMessage.Data:
 						default:
-							fmt.Println("@hub.direct: missing message len(c.send)", len(c.send))
+							logger.Debug("@hub.direct: missing message len(c.send)", len(c.send))
 						}
 					}
 				}
@@ -259,7 +264,7 @@ func init() {
 	ticker := time.NewTicker(1 * time.Second)
 	go func() {
 		for range ticker.C {
-			fmt.Println("Num goroutine:", runtime.NumGoroutine())
+			logger.Debug("Num goroutine:", runtime.NumGoroutine())
 		}
 	}()
 }
