@@ -2,7 +2,6 @@ package rest
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	nativeLog "log"
 	"net/http"
@@ -39,8 +38,6 @@ type notificationHandler struct {
 	wsNotificator NotificationUsecases.NotificatorUsecase
 }
 
-var i = 0
-
 // @Summary notify client
 // @Description notify client
 // @Router /api/v1/notifications/ [post]
@@ -57,8 +54,6 @@ func (h *notificationHandler) handle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("@rest.handle %+v\n", *msg)
-
 	if len(msg.TransMap.UserIDs) >= 0 {
 		go h.wsNotificator.SendDirect(&NotificationUsecases.DirectMessage{
 			UserIDs: msg.TransMap.UserIDs,
@@ -67,6 +62,4 @@ func (h *notificationHandler) handle(w http.ResponseWriter, r *http.Request) {
 	} else {
 		go h.wsNotificator.SendAll(b)
 	}
-	i++
-	fmt.Println("@rest.handle sended:", i)
 }

@@ -54,7 +54,6 @@ func (h *notificationHandler) handle(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("WTF @handleWs upgrade ws", err)
 		return
 	}
-	fmt.Println("Websocket connection established")
 
 	msg := make(map[string]interface{})
 	err = c.ReadJSON(&msg)

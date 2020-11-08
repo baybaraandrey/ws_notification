@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -12,10 +13,10 @@ const (
 	writeWait = 10 * time.Second
 
 	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
+	pongWait = 10 * time.Second
 
 	// send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = 55 * time.Second
+	pingPeriod = 5 * time.Second
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 4096 * 4
@@ -27,11 +28,11 @@ type NotificatorUsecase interface {
 }
 
 var wshub = &hub{
-	clients:    make(map[string][]*Client, 0),
+	clients:    make(map[string][]*Client, 100),
 	broadcast:  make(chan []byte),
-	register:   make(chan *Client),
-	unregister: make(chan *Client),
-	direct:     make(chan *DirectMessage),
+	register:   make(chan *Client, 256),
+	unregister: make(chan *Client, 256),
+	direct:     make(chan *DirectMessage, 256),
 }
 
 func getHub() *hub {
@@ -50,31 +51,79 @@ type Client struct {
 	conn *websocket.Conn
 }
 
+func (c *Client) readPump() {
+	defer func() {
+		c.hub.unregister <- c
+		c.conn.Close()
+	}()
+	c.conn.SetReadLimit(maxMessageSize)
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
+	for {
+		msgType, _, err := c.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				fmt.Printf("IsUnexpectedCloseError: %v\n", err)
+			}
+			return
+		}
+
+		if msgType == websocket.CloseMessage {
+			fmt.Println("readPump close message receive")
+			return
+		}
+	}
+}
+
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
+		fmt.Println("@Client.writePump: unregister before")
 		c.hub.unregister <- c
-		fmt.Println("unregister", c)
+		fmt.Println("@Client.writePump: unregister after")
 	}()
 	for {
 		select {
 		case msgBytes, ok := <-c.send:
-			fmt.Println("@Client.writePump: <-c.send")
+			fmt.Println("@Client.writePump: receive message from c.send: ", ok)
 			// log.Debug("writePump receive message: ", string(msgBytes))
 
-			// c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel
 				fmt.Println("@Client.writePump: !ok the hub closed the channel")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-
-			err := c.conn.WriteMessage(websocket.TextMessage, msgBytes)
+			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				fmt.Println("Error when writing", err)
+				return
+			}
+
+			w.Write(msgBytes)
+
+			// Add queued chat messages to the current websocket message.
+			n := len(c.send)
+			for i := 0; i < n; i++ {
+				m, ok := <-c.send
+				if !ok {
+					fmt.Println("@Client.writePump: inside loop hub closed channel")
+					return
+				}
+				_, err := w.Write(m)
+				if err != nil {
+					fmt.Println("@Client.writePump: error w.Write(<-c.send) drain", err)
+					for j := i; j < n; j++ {
+						<-c.send
+						return
+					}
+				}
+			}
+
+			if err := w.Close(); err != nil {
 				return
 			}
 		case <-ticker.C:
@@ -126,23 +175,44 @@ func (h *hub) run() {
 			h.clients[client.id] = append(h.clients[client.id], client)
 			fmt.Println("@hub.run: clients add len", len(h.clients[client.id]))
 		case client := <-h.unregister:
-			fmt.Println("@hub.run: unregister")
+			fmt.Println("@hub.run: unregister client")
+			fmt.Println("@hub.run: unregister len(client.send)", len(client.send))
+			fmt.Println("@hub.run: unregister len(h.unregister)", len(h.unregister))
 			clients, ok := h.clients[client.id]
 			if ok {
 			Loop:
 				for index, c := range clients {
-					fmt.Println("Loop", index, c)
 					if c.conn == client.conn {
-						fmt.Println("Same", index, c)
 						h.clients[client.id] = append(clients[:index], clients[index+1:]...)
+						close(client.send)
 						break Loop
 					}
 				}
+				fmt.Println("@hub.run: clients delete len", len(h.clients[client.id]))
 				if len(h.clients[client.id]) == 0 {
 					delete(h.clients, client.id)
 				}
-				close(client.send)
 				fmt.Println("len(@hub.clients):", h.clients)
+			}
+			n := len(h.unregister)
+			for i := 0; i < n; i++ {
+				client := <-h.unregister
+				clients, ok := h.clients[client.id]
+				if ok {
+				Loop1:
+					for index, c := range clients {
+						if c.conn == client.conn {
+							h.clients[client.id] = append(clients[:index], clients[index+1:]...)
+							close(client.send)
+							break Loop1
+						}
+					}
+					fmt.Println("@hub.run: clients delete len", len(h.clients[client.id]))
+					if len(h.clients[client.id]) == 0 {
+						delete(h.clients, client.id)
+					}
+					fmt.Println("len(@hub.clients):", h.clients)
+				}
 			}
 		case message := <-h.broadcast:
 			for _, connList := range h.clients {
@@ -158,7 +228,11 @@ func (h *hub) run() {
 				if ok {
 					fmt.Println("@hub.direct: sendto", userID)
 					for _, c := range clients {
-						c.send <- directMessage.Data
+						select {
+						case c.send <- directMessage.Data:
+						default:
+							fmt.Println("@hub.direct: missing message len(c.send)", len(c.send))
+						}
 					}
 				}
 			}
@@ -171,17 +245,21 @@ func ServeWs(conn *websocket.Conn, userID string) {
 		id:   userID,
 		hub:  getHub(),
 		conn: conn,
-		send: make(chan []byte),
+		send: make(chan []byte, 256),
 	}
-
-	fmt.Println("@ServeWs client:", userID)
 
 	client.hub.register <- client
 
 	go client.writePump()
+	go client.readPump()
 }
 
 func init() {
-	fmt.Println("@notificator.init: run wshub")
 	go wshub.run()
+	ticker := time.NewTicker(1 * time.Second)
+	go func() {
+		for range ticker.C {
+			fmt.Println("Num goroutine:", runtime.NumGoroutine())
+		}
+	}()
 }
