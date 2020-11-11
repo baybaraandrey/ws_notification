@@ -20,25 +20,22 @@ type Config struct {
 	DbHost string
 	// database port
 	DbPort int
-
-	// media
-	CoursesMediaRoot string
 }
 
 // Load returns an application configuration which is populated from the given environment variables.
 func Load() (*Config, error) {
 	// REST Server
-	RESTServerPort := viper.GetInt("REST_SERVER_PORT")
+	RESTServerPort := viper.GetInt("WS_REST_SERVER_PORT")
 
 	// WS Server
-	WsServerPort := viper.GetInt("WS_SERVER_PORT")
+	WsServerPort := viper.GetInt("WS_WEBSOCKET_SERVER_PORT")
 
 	// Database
-	dbUser := viper.GetString("DB_USER")
-	dbPass := viper.GetString("DB_PASS")
+	dbUser := viper.GetString("WS_DB_USER")
+	dbPass := viper.GetString("WS_DB_PASSWORD")
 	dbName := viper.GetString("DB_NAME")
 	dbHost := viper.GetString("DB_HOST")
-	dbPort := viper.GetInt("DB_PORT")
+	dbPort := viper.GetInt("WS_DB_PORT")
 
 	// default config
 	config := Config{
@@ -56,11 +53,11 @@ func Load() (*Config, error) {
 
 func init() {
 	viper.AutomaticEnv()
-	viper.SetDefault("REST_SERVER_PORT", 8080)
-	viper.SetDefault("WS_SERVER_PORT", 7778)
-	viper.SetDefault("DB_USER", "cyberjin")
-	viper.SetDefault("DB_PASS", "cyberjin")
-	viper.SetDefault("DB_NAME", "cyberjin")
-	viper.SetDefault("DB_HOST", "localhost")
-	viper.SetDefault("DB_PORT", 5432)
+	viper.SetDefault("WS_REST_SERVER_PORT", 8080)
+	viper.SetDefault("WS_WEBSOCKET_SERVER_PORT", 7778)
+	viper.SetDefault("WS_DB_USER", "cyberjin")
+	viper.SetDefault("WS_DB_PASS", "cyberjin")
+	viper.SetDefault("WS_DB_NAME", "cyberjin")
+	viper.SetDefault("WS_DB_HOST", "localhost")
+	viper.SetDefault("WS_DB_PORT", 5432)
 }
