@@ -20,9 +20,7 @@ import (
 	monitor "github.com/baybaraandrey/ws_notification/internal/monitoring/delivery/rest"
 	notificationsRest "github.com/baybaraandrey/ws_notification/internal/notification/delivery/rest"
 	notificationsWs "github.com/baybaraandrey/ws_notification/internal/notification/delivery/ws"
-	notificationRepositories "github.com/baybaraandrey/ws_notification/internal/notification/repositories"
 	notificationUsecases "github.com/baybaraandrey/ws_notification/internal/notification/usecases"
-	database "github.com/baybaraandrey/ws_notification/pkg/postgresql"
 )
 
 // Version indicates the current version of the application.
@@ -53,8 +51,6 @@ func createServer(addr string, router *mux.Router) *http.Server {
 // @host localhost:8080
 // @BasePath /
 func main() {
-	defer database.CloseDB()
-
 	wg := new(sync.WaitGroup)
 
 	kingpin.Parse()
@@ -88,12 +84,11 @@ func main() {
 		http.Redirect(w, r, "/swagger/", http.StatusMovedPermanently)
 	})
 
-	wsNotificator := notificationUsecases.NewWebsocketNotificator()
-	userRepository := notificationRepositories.NewUserRepository()
+	notification := notificationUsecases.NewWebsocketNotification()
 
 	// API
-	notificationsRest.NewNotificationHandler(restv1, wsNotificator)
-	notificationsWs.NewNotificationHandler(wsv1, wsNotificator, userRepository)
+	notificationsRest.NewNotificationHandler(restv1, notification)
+	notificationsWs.NewNotificationHandler(wsv1, notification)
 
 	restAddr := fmt.Sprintf("0.0.0.0:%d", cfg.RESTServerPort)
 	wsAddr := fmt.Sprintf("0.0.0.0:%d", cfg.WsServerPort)

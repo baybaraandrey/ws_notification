@@ -20,9 +20,9 @@ var (
 // NewNotificationHandler register server routes
 func NewNotificationHandler(
 	r *mux.Router,
-	wsNotificator NotificationUsecases.NotificatorUsecase,
+	notificationWs NotificationUsecases.NotificationUsecase,
 ) {
-	handler := notificationHandler{wsNotificator}
+	handler := notificationHandler{notificationWs}
 
 	r.HandleFunc("/notifications/", handler.handle).Methods("GET", "POST")
 }
@@ -35,7 +35,7 @@ type message struct {
 
 // notificationHandler represent API service for notifications
 type notificationHandler struct {
-	wsNotificator NotificationUsecases.NotificatorUsecase
+	notificationWs NotificationUsecases.NotificationUsecase
 }
 
 // @Summary notify client
@@ -55,11 +55,11 @@ func (h *notificationHandler) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(msg.TransMap.UserIDs) >= 0 {
-		go h.wsNotificator.SendDirect(&NotificationUsecases.DirectMessage{
+		go h.notificationWs.SendDirect(&NotificationUsecases.DirectMessage{
 			UserIDs: msg.TransMap.UserIDs,
 			Data:    b,
 		})
 	} else {
-		go h.wsNotificator.SendAll(b)
+		go h.notificationWs.SendAll(b)
 	}
 }

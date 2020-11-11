@@ -1,23 +1,18 @@
 version: '3.6'
 x-build:
   &build
-  context: .deploy/
+  context: .
+  dockerfile: .deploy/Dockerfile
 x-env:
   &env
   WS_LOGGING_LEVEL: ${LOGGING_LEVEL:-DEBUG}
-  WS_REST_SERVER_PORT: ${WS_REST_SERVER_PORT:-8090}
-  WS_WEBSOCKET_SERVER_PORT: ${WS_WS_SERVER_PORT:-7777}
-  WS_DB_USER: ${WS_DB_USER}
-  WS_DB_PASSWORD: ${WS_DB_PASSWORD}
-  WS_DB_PORT: ${WS_DB_PORT:-5432}
-  WS_DB_NAME: ${WS_DB_NAME}
-  WS_DB_HOST: ${WS_DB_HOST}
+  WS_REST_SERVER_PORT: ${WS_REST_SERVER_PORT:-8080}
+  WS_WEBSOCKET_SERVER_PORT: ${WS_WS_SERVER_PORT:-7778}
 services:
   web:
     image: ws_notification/ws_notification:${VERSION:-latest}
     build: *build
     environment: *env
-    command: ['./main']
     restart: always
     ports:
       - '8080:8080'

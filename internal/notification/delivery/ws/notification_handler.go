@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	_ "path"
-	"strconv"
 
-	notificationRepositories "github.com/baybaraandrey/ws_notification/internal/notification/repositories"
 	notificationUsecases "github.com/baybaraandrey/ws_notification/internal/notification/usecases"
 
 	log "github.com/baybaraandrey/ws_notification/pkg/log"
-	"github.com/baybaraandrey/ws_notification/pkg/utils"
 
 	// "github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -24,18 +21,16 @@ var (
 // NewNotificationHandler register server routes
 func NewNotificationHandler(
 	r *mux.Router,
-	wsNotificator notificationUsecases.NotificatorUsecase,
-	userRepository notificationRepositories.UserRepository,
+	notificationWs notificationUsecases.NotificationUsecase,
 ) {
-	handler := notificationHandler{wsNotificator, userRepository}
+	handler := notificationHandler{notificationWs}
 
 	r.HandleFunc("/notifications/", handler.handle).Methods("GET")
 }
 
 // notificationHandler represent API service for notifications
 type notificationHandler struct {
-	wsNotificator  notificationUsecases.NotificatorUsecase
-	userRepository notificationRepositories.UserRepository
+	notificationWs notificationUsecases.NotificationUsecase
 }
 
 var (
@@ -63,32 +58,12 @@ func (h *notificationHandler) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, ok := msg["username"].(string)
-	if !ok {
-		fmt.Println("ws.handle error when casting username type")
+	if id, ok := msg["id"].(string); ok {
+		go notificationUsecases.ServeWs(c, id)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("cannot cast id"))
 		c.Close()
 		return
 	}
-	password, ok := msg["password"].(string)
-	if !ok {
-		fmt.Println("ws.handle error when casting password type")
-		c.Close()
-		return
-	}
-
-	user, err := h.userRepository.GetUserByUsername(username)
-	if err != nil {
-		fmt.Println(err)
-		c.Close()
-		return
-	}
-
-	if ok := utils.CheckDjangoPassword(password, user.Password); !ok {
-		fmt.Println("Wrong password")
-		c.Close()
-		return
-	}
-
-	userID := strconv.Itoa(user.ID)
-	go notificationUsecases.ServeWs(c, userID)
 }

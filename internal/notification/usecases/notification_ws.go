@@ -24,7 +24,7 @@ const (
 	maxMessageSize = 4096 * 4
 )
 
-type NotificatorUsecase interface {
+type NotificationUsecase interface {
 	SendAll(b []byte)
 	SendDirect(directMessage *DirectMessage)
 }
@@ -40,7 +40,7 @@ var wshub = &hub{
 func getHub() *hub {
 	return wshub
 }
-func NewWebsocketNotificator() NotificatorUsecase {
+func NewWebsocketNotification() NotificationUsecase {
 	return wshub
 }
 
@@ -89,42 +89,33 @@ func (c *Client) writePump() {
 	}()
 	for {
 		select {
-		case msgBytes, ok := <-c.send:
-			logger.Debug("@Client.writePump: receive message from c.send: ", ok)
-			// log.Debug("writePump receive message: ", string(msgBytes))
-
+		case message, ok := <-c.send:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				// The hub closed the channel
-				logger.Debug("@Client.writePump: !ok the hub closed the channel")
+				logger.Debug("hub closed the channel")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
+
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				logger.Error("getting writer ", err)
 				return
 			}
 
-			_, err = w.Write(msgBytes)
+			_, err = w.Write(message)
 			if err != nil {
+				logger.Error("write message ", err)
 				return
 			}
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				m, ok := <-c.send
-				if !ok {
-					logger.Debug("@Client.writePump: inside loop hub closed channel")
-					return
-				}
-				_, err := w.Write(m)
+				_, err := w.Write(<-c.send)
 				if err != nil {
-					logger.Debug("@Client.writePump: error w.Write(<-c.send) drain", err)
-					for j := i; j < n; j++ {
-						<-c.send
-						return
-					}
+					logger.Error("write message ", err)
+					return
 				}
 			}
 
@@ -134,6 +125,7 @@ func (c *Client) writePump() {
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				logger.Debug("ping ", err)
 				return
 			}
 		}
@@ -170,77 +162,72 @@ func (h *hub) SendDirect(directMessage *DirectMessage) {
 	h.direct <- directMessage
 }
 
+func (h *hub) removeClient(client *Client) {
+	logger.Debug("remove client id=", client.id)
+	if clients, ok := h.clients[client.id]; ok {
+		for index, c := range clients {
+			if c.conn == client.conn {
+				h.clients[client.id] = append(clients[:index], clients[index+1:]...)
+				close(client.send)
+				break
+			}
+		}
+		if len(h.clients[client.id]) == 0 {
+			delete(h.clients, client.id)
+		}
+	}
+}
+
+func (h *hub) addClient(client *Client) {
+	logger.Debug("add client id=", client.id)
+	if _, ok := h.clients[client.id]; !ok {
+		h.clients[client.id] = make([]*Client, 0)
+	}
+	h.clients[client.id] = append(h.clients[client.id], client)
+}
+
+func (h *hub) sendBroadcast(message []byte) {
+	for _, clients := range h.clients {
+		for _, client := range clients {
+			client.send <- message
+		}
+	}
+}
+
+func (h *hub) sendDirect(directMessage *DirectMessage) {
+	for _, userID := range directMessage.UserIDs {
+		if clients, ok := h.clients[userID]; ok {
+			for _, client := range clients {
+				select {
+				case client.send <- directMessage.Data:
+				default:
+					logger.Debug("missing message for client id=", client.id)
+				}
+			}
+		}
+	}
+}
+
+func (h *hub) flushUnregister() {
+	n := len(h.unregister)
+	for i := 0; i < n; i++ {
+		client := <-h.unregister
+		h.removeClient(client)
+	}
+}
+
 func (h *hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			if _, ok := h.clients[client.id]; !ok {
-				h.clients[client.id] = make([]*Client, 0)
-			}
-			h.clients[client.id] = append(h.clients[client.id], client)
-			logger.Debug("@hub.run: clients add len", len(h.clients[client.id]))
+			h.addClient(client)
 		case client := <-h.unregister:
-			logger.Debug("@hub.run: unregister client")
-			logger.Debug("@hub.run: unregister len(client.send)", len(client.send))
-			logger.Debug("@hub.run: unregister len(h.unregister)", len(h.unregister))
-			clients, ok := h.clients[client.id]
-			if ok {
-			Loop:
-				for index, c := range clients {
-					if c.conn == client.conn {
-						h.clients[client.id] = append(clients[:index], clients[index+1:]...)
-						close(client.send)
-						break Loop
-					}
-				}
-				logger.Debug("@hub.run: clients delete len", len(h.clients[client.id]))
-				if len(h.clients[client.id]) == 0 {
-					delete(h.clients, client.id)
-				}
-				logger.Debug("@hub.run: len(@hub.clients):", len(h.clients))
-			}
-			n := len(h.unregister)
-			for i := 0; i < n; i++ {
-				client := <-h.unregister
-				clients, ok := h.clients[client.id]
-				if ok {
-				Loop1:
-					for index, c := range clients {
-						if c.conn == client.conn {
-							h.clients[client.id] = append(clients[:index], clients[index+1:]...)
-							close(client.send)
-							break Loop1
-						}
-					}
-					logger.Debug("@hub.run: clients delete len", len(h.clients[client.id]))
-					if len(h.clients[client.id]) == 0 {
-						delete(h.clients, client.id)
-					}
-					logger.Debug("@hub.run: len(@hub.clients):", len(h.clients))
-				}
-			}
+			h.removeClient(client)
+			h.flushUnregister()
 		case message := <-h.broadcast:
-			for _, connList := range h.clients {
-				for index, c := range connList {
-					_ = index
-					c.send <- message
-				}
-			}
+			h.sendBroadcast(message)
 		case directMessage := <-h.direct:
-			for _, userID := range directMessage.UserIDs {
-				clients, ok := h.clients[userID]
-
-				if ok {
-					logger.Debug("@hub.direct: sendto", userID)
-					for _, c := range clients {
-						select {
-						case c.send <- directMessage.Data:
-						default:
-							logger.Debug("@hub.direct: missing message len(c.send)", len(c.send))
-						}
-					}
-				}
-			}
+			h.sendDirect(directMessage)
 		}
 	}
 }
@@ -264,7 +251,7 @@ func init() {
 	ticker := time.NewTicker(1 * time.Second)
 	go func() {
 		for range ticker.C {
-			logger.Debug("Num goroutine:", runtime.NumGoroutine())
+			logger.Debug("NumGoroutine(): ", runtime.NumGoroutine())
 		}
 	}()
 }

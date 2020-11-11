@@ -10,16 +10,6 @@ type Config struct {
 	RESTServerPort int
 	// the Websocket server port
 	WsServerPort int
-	// the user name for connecting to the database.
-	DbUser string
-	// database password
-	DbPass string
-	// database default name
-	DbName string
-	// database host
-	DbHost string
-	// database port
-	DbPort int
 }
 
 // Load returns an application configuration which is populated from the given environment variables.
@@ -30,22 +20,10 @@ func Load() (*Config, error) {
 	// WS Server
 	WsServerPort := viper.GetInt("WS_WEBSOCKET_SERVER_PORT")
 
-	// Database
-	dbUser := viper.GetString("WS_DB_USER")
-	dbPass := viper.GetString("WS_DB_PASSWORD")
-	dbName := viper.GetString("DB_NAME")
-	dbHost := viper.GetString("DB_HOST")
-	dbPort := viper.GetInt("WS_DB_PORT")
-
 	// default config
 	config := Config{
 		RESTServerPort: RESTServerPort,
 		WsServerPort:   WsServerPort,
-		DbUser:         dbUser,
-		DbPass:         dbPass,
-		DbName:         dbName,
-		DbHost:         dbHost,
-		DbPort:         dbPort,
 	}
 
 	return &config, nil
@@ -55,9 +33,4 @@ func init() {
 	viper.AutomaticEnv()
 	viper.SetDefault("WS_REST_SERVER_PORT", 8080)
 	viper.SetDefault("WS_WEBSOCKET_SERVER_PORT", 7778)
-	viper.SetDefault("WS_DB_USER", "cyberjin")
-	viper.SetDefault("WS_DB_PASS", "cyberjin")
-	viper.SetDefault("WS_DB_NAME", "cyberjin")
-	viper.SetDefault("WS_DB_HOST", "localhost")
-	viper.SetDefault("WS_DB_PORT", 5432)
 }
