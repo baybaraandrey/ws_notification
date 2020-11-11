@@ -8,6 +8,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/shirou/gopsutil/mem"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // NewMonitorHandler register handlers for certain routes
@@ -15,7 +17,8 @@ func NewMonitorHandler(
 	r *mux.Router,
 ) {
 	handler := monitorHandler{}
-	r.HandleFunc("/_api/", handler.APIok)
+	r.HandleFunc("/_api", handler.APIok)
+	r.Handle("/metrics", promhttp.Handler())
 }
 
 // monitorHandler represent API service status
