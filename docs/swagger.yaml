@@ -1,4 +1,15 @@
 basePath: /
+definitions:
+  auth.JWTAuth:
+    properties:
+      jwt_token:
+        type: string
+    type: object
+  ws.Message:
+    properties:
+      msg:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -27,7 +38,28 @@ paths:
       - rest-notifications
   /ws/v1/notifications/:
     get:
-      description: notifications api
+      consumes:
+      - application/json
+      description: notifications api jwt token must be sended after websocet connection
+        established
+      parameters:
+      - description: jwt token
+        in: body
+        name: query
+        required: true
+        schema:
+          $ref: '#/definitions/auth.JWTAuth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ws.Message'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ws.Message'
       summary: notifications api
       tags:
       - ws-notifications

@@ -10,6 +10,8 @@ type Config struct {
 	RESTServerPort int
 	// the Websocket server port
 	WsServerPort int
+	// JWT token
+	JWTSecretKey string
 }
 
 // Load returns an application configuration which is populated from the given environment variables.
@@ -20,10 +22,13 @@ func Load() (*Config, error) {
 	// WS Server
 	WsServerPort := viper.GetInt("WS_WEBSOCKET_SERVER_PORT")
 
+	JWTSecretKey := viper.GetString("WS_JWT_SECRET_KEY")
+
 	// default config
 	config := Config{
 		RESTServerPort: RESTServerPort,
 		WsServerPort:   WsServerPort,
+		JWTSecretKey:   JWTSecretKey,
 	}
 
 	return &config, nil

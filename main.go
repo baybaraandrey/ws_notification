@@ -86,9 +86,11 @@ func main() {
 
 	notification := notificationUsecases.NewWebsocketNotification()
 
+	jwtsecretkey := cfg.JWTSecretKey
+
 	// API
 	notificationsRest.NewNotificationHandler(restv1, notification)
-	notificationsWs.NewNotificationHandler(wsv1, notification)
+	notificationsWs.NewNotificationHandler(wsv1, notification, jwtsecretkey)
 
 	restAddr := fmt.Sprintf("0.0.0.0:%d", cfg.RESTServerPort)
 	wsAddr := fmt.Sprintf("0.0.0.0:%d", cfg.WsServerPort)

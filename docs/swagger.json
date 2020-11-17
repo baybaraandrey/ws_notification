@@ -39,11 +39,60 @@
         },
         "/ws/v1/notifications/": {
             "get": {
-                "description": "notifications api",
+                "description": "notifications api jwt token must be sended after websocet connection established",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "ws-notifications"
                 ],
-                "summary": "notifications api"
+                "summary": "notifications api",
+                "parameters": [
+                    {
+                        "description": "jwt token",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.JWTAuth"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ws.Message"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ws.Message"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "auth.JWTAuth": {
+            "type": "object",
+            "properties": {
+                "jwt_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "ws.Message": {
+            "type": "object",
+            "properties": {
+                "msg": {
+                    "type": "string"
+                }
             }
         }
     }

@@ -8,6 +8,7 @@ x-env:
   WS_LOGGING_LEVEL: ${LOGGING_LEVEL:-DEBUG}
   WS_REST_SERVER_PORT: ${WS_REST_SERVER_PORT:-8080}
   WS_WEBSOCKET_SERVER_PORT: ${WS_WS_SERVER_PORT:-7778}
+  WS_JWT_SECRET_KEY: ${WS_JWT_SECRET_KEY:-asd}
 services:
   web:
     image: ws_notification/ws_notification:${VERSION:-latest}

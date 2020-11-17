@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
+
 func CheckDjangoPassword(password string, encodedPassword string) bool {
 	passArr := strings.Split(encodedPassword, "$")
 	//method := passArr[0]
